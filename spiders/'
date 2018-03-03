@@ -1,0 +1,56 @@
+# -*- coding: utf-8 -*-
+import scrapy
+import re
+from scrapy.selector import Selector
+from CoinPairArbitrage.items import CoinpairarbitrageOtcItem
+from CoinPairArbitrage.items import CoinpairarbitrageBBItem
+from datetime import datetime
+from scrapy.spiders import Spider
+from decimal import Decimal
+
+class OtcbtcSpider(Spider):
+    name = 'otcbtc'
+    allowed_domains = ['otcbtc.com']
+    start_urls = [
+	'https://otcbtc.com/sell_offers?currency=eos&fiat_currency=cny&payment_type=all&sort_by=most_trust',
+	'https://otcbtc.com/buy_offers?currency=eth&fiat_currency=cny&payment_type=all&sort_by=most_trust',
+        #'https://bb.otcbtc.com/exchange/markets/eoseth'
+	]
+
+    def parse_otc_item(self, response, otc_currency, otc_type):
+	lt=response.xpath('//ul[@class="list-content"]')
+	current_time=str(datetime.now()).decode('unicode-escape')
+    	max_currency_price=Decimal('0.0')
+	item=CoinpairarbitrageOtcItem()
+	for it in lt:
+		trade_count=re.sub("Trade", "", it.xpath('li[@class="user-trust"]/text()').extract()[1], flags=re.UNICODE).strip()
+		currency_price=re.sub(",", "", it.xpath('li[@class="price"]/text()').extract()[1], flags=re.UNICODE).strip()
+		if int(trade_count) > 10000 and Decimal(currency_price) > max_currency_price:
+			max_currency_price = Decimal(currency_price)
+			item['otc_user_name']=it.xpath('li[@class="user-name"]/a/text()').extract()
+			item['otc_user_trade_count']=trade_count
+			item['otc_user_currency_price']=currency_price
+			item['otc_user_currency']=otc_currency.decode('unicode-escape')
+			item['otc_type']=otc_type.decode('unicode-escape')
+			item['current_time']=current_time
+	return item
+
+    def parse_bb_item(self, response, bb_type):
+	first_script_item = response.xpath('//script').extract_first()
+	bb_price_match=re.search(r'gon.ticker={"name":"EOS/ETH".+?last":"(.+?)",', first_script_item)
+	current_time=str(datetime.now()).decode('unicode-escape')
+    	item=CoinpairarbitrageBBItem()
+	item['current_time']=current_time
+	item['']=bb_price_match.group(1).decode('unicode-escape')
+
+    	return item
+
+    def parse(self, response):
+#		print bb_price_match.group(0)
+#		print bb_price_match.group(1)
+	try:
+		otc_currency_match = re.search(r'currency=(.+?)&', response.url)
+		otc_type_match = re.search(r'.+?com/(.+?)_offers', response.url)
+		return self.parse_otc_item(response, otc_currency_match.group(1), otc_type_match.group(1))
+	except AttributeError:
+		return self.parse_bb_item(response, bb_price_match.group(1))
