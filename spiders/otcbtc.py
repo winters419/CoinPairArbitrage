@@ -19,63 +19,64 @@ class OtcbtcSpider(Spider):
     profit_compute_dict = {}
 
     def parse_otc_item(self, response, otc_currency):
-	otc_type_match = re.search(r'.+?com/(.+?)_offers', response.url)
-	current_time=str(datetime.now()).decode('unicode-escape')
-    	min_max_currency_price=Decimal('0.0')
-	
-	item=CoinpairarbitrageOtcItem()
+        otc_type_match = re.search(r'.+?com/(.+?)_offers', response.url)
+        current_time=str(datetime.now()).decode('unicode-escape')
+        min_max_currency_price=Decimal('0.0')
 
-	lt=response.xpath('//ul[@class="list-content"]')
-	for it in lt:
-		trade_count=re.sub("Trade", "", it.xpath('li[@class="user-trust"]/text()').extract()[1], flags=re.UNICODE).strip()
-		currency_price=re.sub(",", "", it.xpath('li[@class="price"]/text()').extract()[1], flags=re.UNICODE).strip()
-		otc_type_str=otc_type_match.group(1)
-		if int(trade_count) > 10000 and self.is_suitable_price(Decimal(currency_price, min_max_currency_price, otc_type_str)):
-			min_max_currency_price = Decimal(currency_price)
-			item['otc_user_name']=it.xpath('li[@class="user-name"]/a/text()').extract()
-			item['otc_user_trade_count']=trade_count
-			item['otc_user_currency_price']=currency_price
-			item['otc_user_currency']=otc_currency.decode('unicode-escape')
-			item['otc_type']=otc_type_str.decode('unicode-escape')
-			item['current_time']=current_time
-			item['final_profit']=u'10000'
-	self.profit_compute_dict[otc_currency]=Decimal(currency_price)
-	return item
+        item=CoinpairarbitrageOtcItem()
+
+        lt=response.xpath('//ul[@class="list-content"]')
+        for it in lt:
+            trade_count=re.sub("Trade", "", it.xpath('li[@class="user-trust"]/text()').extract()[1], flags=re.UNICODE).strip()
+            currency_price=re.sub(",", "", it.xpath('li[@class="price"]/text()').extract()[1], flags=re.UNICODE).strip()
+            otc_type_str=otc_type_match.group(1)
+            if int(trade_count) > 10000 and self.is_suitable_price(Decimal(currency_price), min_max_currency_price, otc_type_str):
+                min_max_currency_price = Decimal(currency_price)
+                item['otc_user_name']=it.xpath('li[@class="user-name"]/a/text()').extract()
+                item['otc_user_trade_count']=trade_count
+                item['otc_user_currency_price']=currency_price
+                item['otc_user_currency']=otc_currency.decode('unicode-escape')
+                item['otc_type']=otc_type_str.decode('unicode-escape')
+                item['current_time']=current_time
+                item['final_profit']=u'10000'
+        self.profit_compute_dict[otc_currency]=Decimal(currency_price)
+        return item
+
     def is_suitable_price(currency_price, min_max_currency_price, otc_type):
-	if otc_type == 'buy':
-		return currency_price > min_max_currency_price
-	else:
-		return currency_price < min_max_currency_price
+        if otc_type == 'buy':
+            return currency_price > min_max_currency_price
+        else:
+            return currency_price < min_max_currency_price
 
     def parse_bb_item(self, response):
-	first_script_item = response.xpath('//script').extract_first()
-	bb_price_match=re.search(r'gon.ticker={"name":"EOS/ETH".+?last":"(.+?)",', first_script_item)
+        first_script_item = response.xpath('//script').extract_first()
+        bb_price_match=re.search(r'gon.ticker={"name":"EOS/ETH".+?last":"(.+?)",', first_script_item)
 
-	bb_type_match = re.search(r'.+?markets/(.+?)$', response.url)
+        bb_type_match = re.search(r'.+?markets/(.+?)$', response.url)
 
-	current_time=str(datetime.now()).decode('unicode-escape')
-	
-    	item=CoinpairarbitrageBBItem()
-	item['current_time']=current_time
-	item['bb_price']=bb_price_match.group(1).decode('unicode-escape')
-	item['bb_type']=bb_type_match.group(1).decode('unicode-escape')
-	item['final_profit']=u'10000'
+        current_time=str(datetime.now()).decode('unicode-escape')
 
-	self.profit_compute_dict[bb_type_match.group(1)]=Decimal(bb_price_match.group(1))
-    	return item
+        item=CoinpairarbitrageBBItem()
+        item['current_time']=current_time
+        item['bb_price']=bb_price_match.group(1).decode('unicode-escape')
+        item['bb_type']=bb_type_match.group(1).decode('unicode-escape')
+        item['final_profit']=u'10000'
+
+        self.profit_compute_dict[bb_type_match.group(1)]=Decimal(bb_price_match.group(1))
+        return item
 
     def parse(self, response):
-	otc_currency_match = re.search(r'currency=(.+?)&', response.url)
-	if otc_currency_match:
-		otc_item = self.parse_otc_item(response, otc_currency_match.group(1))
-		if len(self.profit_compute_dict) == 3:
-			adjust_profit = (Decimal(10000) / self.profit_compute_dict['eos']) * self.profit_compute_dict['eth'] * self.profit_compute_dict['eoseth']
-			otc_item['final_profit']=unicode(adjust_profit)
-		return otc_item
+        otc_currency_match = re.search(r'currency=(.+?)&', response.url)
+        if otc_currency_match:
+            otc_item = self.parse_otc_item(response, otc_currency_match.group(1))
+            if len(self.profit_compute_dict) == 3:
+                adjust_profit = (Decimal(10000) / self.profit_compute_dict['eos']) * self.profit_compute_dict['eth'] * self.profit_compute_dict['eoseth']
+                otc_item['final_profit']=unicode(adjust_profit)
+            return otc_item
 
-	else:
-		bb_item = self.parse_bb_item(response) 
-		if len(self.profit_compute_dict) == 3:
-			adjust_profit = (Decimal(10000) / self.profit_compute_dict['eos']) * self.profit_compute_dict['eth'] * self.profit_compute_dict['eoseth']
-			bb_item['final_profit']=unicode(adjust_profit)
-		return bb_item
+        else:
+            bb_item = self.parse_bb_item(response) 
+            if len(self.profit_compute_dict) == 3:
+                adjust_profit = (Decimal(10000) / self.profit_compute_dict['eos']) * self.profit_compute_dict['eth'] * self.profit_compute_dict['eoseth']
+                bb_item['final_profit']=unicode(adjust_profit)
+            return bb_item
