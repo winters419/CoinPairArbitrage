@@ -42,7 +42,7 @@ class OtcbtcSpider(Spider):
         self.profit_compute_dict[otc_currency]=Decimal(currency_price)
         return item
 
-    def is_suitable_price(currency_price, min_max_currency_price, otc_type):
+    def is_suitable_price(self, currency_price, min_max_currency_price, otc_type):
         if otc_type == 'buy':
             return currency_price > min_max_currency_price
         else:
