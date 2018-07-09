@@ -13,6 +13,7 @@ class OtcbtcSpider(Spider):
     allowed_domains = ['otcbtc.com']
     start_urls = [
 	'https://otcbtc.com/sell_offers?currency=eos&fiat_currency=cny&payment_type=all&sort_by=most_trust',
+	#'https://otcbtc.com/sell_offers?currency=ada&fiat_currency=cny&payment_type=all&sort_by=most_trust'
 	'https://otcbtc.com/buy_offers?currency=eth&fiat_currency=cny&payment_type=all&sort_by=most_trust',
         'https://bb.otcbtc.com/exchange/markets/eoseth'
 	]
@@ -20,8 +21,13 @@ class OtcbtcSpider(Spider):
 
     def parse_otc_item(self, response, otc_currency):
         otc_type_match = re.search(r'.+?com/(.+?)_offers', response.url)
+        otc_type_str=otc_type_match.group(1)
+
         current_time=str(datetime.now()).decode('unicode-escape')
-        min_max_currency_price=Decimal('0.0')
+        if otc_type_str == 'buy':
+	    min_max_currency_price=Decimal('0.0')
+        else:
+            min_max_currency_price=Decimal('Inf')
 
         item=CoinpairarbitrageOtcItem()
 
@@ -29,7 +35,6 @@ class OtcbtcSpider(Spider):
         for it in lt:
             trade_count=re.sub("Trade", "", it.xpath('li[@class="user-trust"]/text()').extract()[1], flags=re.UNICODE).strip()
             currency_price=re.sub(",", "", it.xpath('li[@class="price"]/text()').extract()[1], flags=re.UNICODE).strip()
-            otc_type_str=otc_type_match.group(1)
             if int(trade_count) > 10000 and self.is_suitable_price(Decimal(currency_price), min_max_currency_price, otc_type_str):
                 min_max_currency_price = Decimal(currency_price)
                 item['otc_user_name']=it.xpath('li[@class="user-name"]/a/text()').extract()
