@@ -6,6 +6,10 @@
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+import random
+import base64
+import requests
+import json
 
 
 class CoinpairarbitrageSpiderMiddleware(object):
@@ -101,3 +105,32 @@ class CoinpairarbitrageDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+
+
+class RandomUserAgent(object):
+    """Randomly rotate user agents based on a list of predefined ones"""
+    def __init__(self, agents):
+        self.agents = agents
+    @classmethod
+    def from_crawler(cls, crawler):
+	return cls(crawler.settings.getlist('USER_AGENTS'))
+    def process_request(self, request, spider):
+        # print "**************************" + random.choice(self.agents)
+        request.headers.setdefault('User-Agent', random.choice(self.agents))
+class ProxyMiddleware(object):
+    def process_request(self, request, spider):
+	r = requests.get('http://127.0.0.1:8080/?types=0&protocol=2&count=10&country=国内')
+	ip_ports = json.loads(r.text)
+	print(ip_ports)
+	
+        proxy = random.choice(ip_ports)
+	print(proxy)
+	request.meta['proxy'] = "http://%s:%s" % (proxy[0], proxy[1])
+#        if proxy['user_pass'] is not None:
+#            request.meta['proxy'] = "http://%s" % proxy['ip_port']
+#            encoded_user_pass = base64.encodestring(proxy['user_pass'])
+#            request.headers['Proxy-Authorization'] = 'Basic ' + encoded_user_pass
+#            print "**************ProxyMiddleware have pass************" + proxy['ip_port']
+#        else:
+#            print "**************ProxyMiddleware no pass************" + proxy['ip_port']
+#            request.meta['proxy'] = "http://%s" % proxy['ip_port']
