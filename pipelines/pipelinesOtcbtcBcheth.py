@@ -7,7 +7,7 @@
 
 import json
 
-class CoinpairarbitragePipeline(object):
+class CoinpairarbitrageOtcbtcBchethPipeline(object):
 
     def process_item(self, item, spider):
     	line = json.dumps(dict(item)) + "\n"
@@ -15,7 +15,7 @@ class CoinpairarbitragePipeline(object):
         return item
 
     def open_spider(self, spider):
-        self.file = open('otcbtc.jl', 'a')
+        self.file = open('otcbtc_bcheth.jl', 'a')
 	
     def close_spider(self, spider):
     	self.file.close()

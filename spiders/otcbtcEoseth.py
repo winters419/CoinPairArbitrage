@@ -8,8 +8,8 @@ from datetime import datetime
 from scrapy.spiders import Spider
 from decimal import Decimal
 
-class OtcbtcSpider(Spider):
-    name = 'otcbtc'
+class OtcbtcEosethSpider(Spider):
+    name = 'otcbtcEoseth'
     allowed_domains = ['otcbtc.com']
     start_urls = [
 	'https://otcbtc.com/sell_offers?currency=eos&fiat_currency=cny&payment_type=all&sort_by=most_trust',
@@ -18,6 +18,11 @@ class OtcbtcSpider(Spider):
         'https://bb.otcbtc.com/exchange/markets/eoseth'
 	]
     profit_compute_dict = {}
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'CoinPairArbitrage.pipelines.pipelinesOtcbtcEoseth.CoinpairarbitrageOtcbtcEosethPipeline': 200
+        }
+    }
 
     def parse_otc_item(self, response, otc_currency):
         otc_type_match = re.search(r'.+?com/(.+?)_offers', response.url)
